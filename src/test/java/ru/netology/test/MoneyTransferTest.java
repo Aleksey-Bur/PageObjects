@@ -1,143 +1,59 @@
 package ru.netology.test;
 
+import com.codeborne.selenide.Condition;
 import lombok.val;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ru.netology.data.DataHelper;
 import ru.netology.page.DashboardPage;
 import ru.netology.page.LoginPage;
+import ru.netology.page.TransferPage;
 
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
+import static com.codeborne.selenide.Selectors.withText;
+import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.open;
-import static ru.netology.data.DataHelper.*;
-
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class MoneyTransferTest {
     @BeforeEach
-    void login() {
-        val loginPage = open("http://localhost:9999", LoginPage.class);
+    void setup() {
+        open("http://localhost:9999");
+        val loginPage = new LoginPage();
         val authInfo = DataHelper.getAuthInfo();
-        val verificationPage = loginPage.validLogin(authInfo);
-        val verificationCode = DataHelper.getVerificationCode();
+        val verificationPage = loginPage.valid(authInfo);
+        val verificationCode = DataHelper.getVerificationCodeFor(authInfo);
         verificationPage.validVerify(verificationCode);
-        adjustmentOfTheBalance();
+    }
+    @Test
+    void shouldTopUpFirstCard() {
+        val dashboardPage = new DashboardPage();
+        int expected = dashboardPage.getCardBalance("92df3f1c-a033-48e6-8390-206f6b1f56c0") + 1;
+        dashboardPage.topUpCard1();
+        val transferPage = new TransferPage();
+        transferPage.transfer("1", "5559 0000 0000 0002");
+        int firstCardBalance = dashboardPage.getCardBalance("92df3f1c-a033-48e6-8390-206f6b1f56c0");
+        assertEquals(expected, firstCardBalance);
+    }
+    @Test
+    void shouldTopUpSecondCard() {
+        val dashboardPage = new DashboardPage();
+        int expected = 20000;
+        String sum = Integer.toString(dashboardPage.getCardBalance("92df3f1c-a033-48e6-8390-206f6b1f56c0"));
+        dashboardPage.topUpCard2();
+        val transferPage = new TransferPage();
+        transferPage.transfer(sum, "5559 0000 0000 0001");
+        int firstCardBalance = dashboardPage.getCardBalance("0f3f5c2a-249e-4c3d-8287-09f7a039391d");
+        assertEquals(expected, firstCardBalance);
     }
 
     @Test
-    void shouldTransferOnFirstCard() {
+    void shouldGetNotification() {
         val dashboardPage = new DashboardPage();
-        val sum = 5000;
-        val balanceFirstCardStart = dashboardPage.extractFirstCardBalance();
-        val balanceSecondCardStart = dashboardPage.extractSecondCardBalance();
-        val transferPage = dashboardPage.selectCardButton("5559 0000 0000 0001");
-        transferPage.fillingFieldsSecondCard(sum);
-        transferPage.transaction(getFirstCardInfo(), sum);
-        val balanceFirstCardFinish = dashboardPage.extractFirstCardBalance() + sum;
-        val balanceSecondCardFinish = dashboardPage.extractSecondCardBalance() - sum;
-        assertEquals(balanceFirstCardStart + sum, balanceFirstCardFinish);
-        assertEquals(balanceSecondCardStart - sum, balanceSecondCardFinish);
-    }
-
-    @Test
-    void shouldTransferZeroOnFirstCard() {
-        val dashboardPage = new DashboardPage();
-        val sum = 0;
-        val balanceFirstCardStart = dashboardPage.extractFirstCardBalance();
-        val balanceSecondCardStart = dashboardPage.extractSecondCardBalance();
-        val transferPage = dashboardPage.selectCardButton("5559 0000 0000 0001");
-        transferPage.fillingFieldsSecondCard(sum);
-        transferPage.transaction(getFirstCardInfo(), sum);
-        val balanceFirstCardFinish = dashboardPage.extractFirstCardBalance() + sum;
-        val balanceSecondCardFinish = dashboardPage.extractSecondCardBalance() - sum;
-        assertEquals(balanceFirstCardStart + sum, balanceFirstCardFinish);
-        assertEquals(balanceSecondCardStart - sum, balanceSecondCardFinish);
-    }
-
-//проверка на пополнение счета сверх лимита донорской карты
-@Test
-void shouldTransferOverLimitOnFirstCard() {
-    val dashboardPage = new DashboardPage();
-    val sum = 11000;
-    val balanceFirstCardStart = dashboardPage.extractFirstCardBalance();
-    val balanceSecondCardStart = dashboardPage.extractSecondCardBalance();
-    val transferPage = dashboardPage.selectCardButton("5559 0000 0000 0001");
-    transferPage.fillingFieldsSecondCard(sum);
-    transferPage.transaction(getFirstCardInfo(), sum);
-    transferPage.moneyTransferError();
-}
-
-    @Test
-    void shouldTransferMaxOnFirstCard() {
-        val dashboardPage = new DashboardPage();
-        val sum = 10000;
-        val balanceFirstCardStart = dashboardPage.extractFirstCardBalance();
-        val balanceSecondCardStart = dashboardPage.extractSecondCardBalance();
-        val transferPage = dashboardPage.selectCardButton("5559 0000 0000 0001");
-        transferPage.fillingFieldsSecondCard(sum);
-        transferPage.transaction(getFirstCardInfo(), sum);
-        val balanceFirstCardFinish = dashboardPage.extractFirstCardBalance() + sum;
-        val balanceSecondCardFinish = dashboardPage.extractSecondCardBalance() - sum;
-        assertEquals(balanceFirstCardStart + sum, balanceFirstCardFinish);
-        assertEquals(balanceSecondCardStart - sum, balanceSecondCardFinish);
-    }
-
-    @Test
-    void shouldTransferOnSecondCard() {
-        val dashboardPage = new DashboardPage();
-        val sum = 5000;
-        val balanceFirstCardStart = dashboardPage.extractFirstCardBalance();
-        val balanceSecondCardStart = dashboardPage.extractSecondCardBalance();
-        val transferPage = dashboardPage.selectCardButton("5559 0000 0000 0002");
-        transferPage.fillingFieldsFirstCard(sum);
-        transferPage.transaction(getSecondCardInfo(), sum);
-        val balanceFirstCardFinish = dashboardPage.extractFirstCardBalance() - sum;
-        val balanceSecondCardFinish = dashboardPage.extractSecondCardBalance() + sum;
-        assertEquals(balanceFirstCardStart - sum, balanceFirstCardFinish);
-        assertEquals(balanceSecondCardStart + sum, balanceSecondCardFinish);
-    }
-
-    @Test
-    void shouldTransferZeroOnSecondCard() {
-        val dashboardPage = new DashboardPage();
-        val sum = 0;
-        val balanceFirstCardStart = dashboardPage.extractFirstCardBalance();
-        val balanceSecondCardStart = dashboardPage.extractSecondCardBalance();
-        val transferPage = dashboardPage.selectCardButton("5559 0000 0000 0002");
-        transferPage.fillingFieldsFirstCard(sum);
-        transferPage.transaction(getSecondCardInfo(), sum);
-        val balanceFirstCardFinish = dashboardPage.extractFirstCardBalance() - sum;
-        val balanceSecondCardFinish = dashboardPage.extractSecondCardBalance() + sum;
-        assertEquals(balanceFirstCardStart - sum, balanceFirstCardFinish);
-        assertEquals(balanceSecondCardStart + sum, balanceSecondCardFinish);
-    }
-
-    @Test
-    void shouldTransferMaxOnSecondCard() {
-        val dashboardPage = new DashboardPage();
-        val sum = 10000;
-        val balanceFirstCardStart = dashboardPage.extractFirstCardBalance();
-        val balanceSecondCardStart = dashboardPage.extractSecondCardBalance();
-        val transferPage = dashboardPage.selectCardButton("5559 0000 0000 0002");
-        transferPage.fillingFieldsFirstCard(sum);
-        transferPage.transaction(getSecondCardInfo(), sum);
-        val balanceFirstCardFinish = dashboardPage.extractFirstCardBalance() - sum;
-        val balanceSecondCardFinish = dashboardPage.extractSecondCardBalance() + sum;
-        assertEquals(balanceFirstCardStart - sum, balanceFirstCardFinish);
-        assertEquals(balanceSecondCardStart + sum, balanceSecondCardFinish);
-    }
-
-    //проверка на пополнение счета сверх лимита донорской карты
-    @Test
-    void shouldTransferOverLimitOnSecondCard() {
-        val dashboardPage = new DashboardPage();
-        val sum = 11000;
-        val balanceFirstCardStart = dashboardPage.extractFirstCardBalance();
-        val balanceSecondCardStart = dashboardPage.extractSecondCardBalance();
-        val transferPage = dashboardPage.selectCardButton("5559 0000 0000 0002");
-        transferPage.fillingFieldsFirstCard(sum);
-        transferPage.transaction(getSecondCardInfo(), sum);
-        transferPage.moneyTransferError();
+        String sum = Integer.toString(dashboardPage.getCardBalance("92df3f1c-a033-48e6-8390-206f6b1f56c0") + 1);
+        dashboardPage.topUpCard2();
+        val transferPage = new TransferPage();
+        transferPage.transfer(sum, "5559 0000 0000 0001");
+        $("[data-test-id=error-notification]").$(withText("Ошибка")).shouldBe(Condition.visible);
     }
 }
