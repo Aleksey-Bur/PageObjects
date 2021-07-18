@@ -15,7 +15,7 @@ import static com.codeborne.selenide.Selenide.$;
 import static com.codeborne.selenide.Selenide.open;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-public class MoneyTransferTest {
+public class TransferTest {
     @BeforeEach
     void setup() {
         open("http://localhost:9999");
